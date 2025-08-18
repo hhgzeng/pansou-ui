@@ -13,6 +13,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <meta name="msvalidate.01" content="9C398069E06C029D29F994105CDF858B" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cmp.gatekeeperconsent.com/min.js" data-cfasync="false"></script>
+    <script src="https://the.gatekeeperconsent.com/cmp.min.js" data-cfasync="false"></script> 
     <script>
         tailwind.config = {
             theme: {
@@ -327,10 +329,24 @@
         }
         
         /* Tab内容区域样式 */
+        #categoryContentContainer {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            gap: 0.75rem;
+            padding: 1rem;
+        }
+
         #categoryContentContainer .category-item-btn,
         #categoryContentContainer .hot-search-btn {
             transition: all 0.2s ease;
             font-weight: 500;
+            text-align: center;
+            justify-content: center;
+            width: 100%; /* 确保按钮填满网格单元 */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block; /* 确保 ellipsis 生效 */
         }
         
         #categoryContentContainer .category-item-btn:hover,
@@ -393,9 +409,10 @@
                 box-shadow: 0 2px 6px rgba(52, 199, 89, 0.2);
             }
 
-            #searchButton {
+            #searchButton, #resetButton {
                 min-height: 44px;
-                padding: 10px 20px;
+                padding: 10px 20px !important; /* 使用 !important 确保覆盖行内样式 */
+                flex-shrink: 0; /* 防止按钮被压缩 */
             }
             
             #backToTopBtn {
@@ -412,6 +429,25 @@
         }
         .search-mode-btn {
             color: #8e8e93;
+        }
+        .scroll-container {
+            display: flex;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none; /* Firefox */
+        }
+        .scroll-container::-webkit-scrollbar {
+            display: none; /* Safari and Chrome */
+        }
+        .scroll-item {
+            flex: 0 0 auto;
+            width: 80%; /* 在移动端显示大部分卡片，但不是全部 */
+            margin-right: 1rem;
+        }
+        @media (min-width: 768px) {
+            .scroll-item {
+                width: calc(33.333% - 1rem); /* 在桌面端显示三列 */
+            }
         }
     </style>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9067024774549867"
@@ -449,6 +485,12 @@
             </div>
         </div>
         </a>
+
+        <!-- 公告 -->
+        <div class="ios-card p-4 mb-8 bg-green-50">
+             <p class="text-center text-green-600 font-bold">✅ 搜索服务已恢复正常，可以正常使用.</p>
+        </div>
+
         <!-- 搜索框 -->
         <div class="ios-card p-1 mb-8 search-box" id="searchContainer">
             <div class="flex items-center">
@@ -480,6 +522,10 @@
             </div>
         </div>
 
+        <!-- ADS -->
+        <!-- <script async="async" data-cfasync="false" src="//unhealthyirreparable.com/03202fae5f6b70e21d670c2cffec94c2/invoke.js"></script>
+        <div id="container-03202fae5f6b70e21d670c2cffec94c2"></div> -->
+
         <!-- 搜索模式切换 -->
         <!-- 搜索模式切换 -->
         <div class="flex justify-center mb-6">
@@ -489,6 +535,9 @@
                 <button id="modeDeep" class="search-mode-btn active z-10 py-2 text-center text-sm font-semibold transition-colors duration-300">深度搜索</button>
             </div>
         </div>
+
+        <!-- 随机资源合集展示 -->
+        <div id="randomCollections" class="mt-8 mb-8"></div>
         
         <!-- 分类Tab切换 -->
         <div id="categoryTabsContainer" class="mb-6 px-2 ios-card">
@@ -597,6 +646,7 @@
         const resultsCount = document.getElementById('resultsCount');
         const filterContainer = document.getElementById('filterContainer');
         const sortSelect = document.getElementById('sortSelect');
+        const randomCollectionsEl = document.getElementById('randomCollections');
         
         // 新版搜索模式控件元素
         const modeFastBtn = document.getElementById('modeFast');
@@ -633,10 +683,23 @@
         // 重置按钮事件
         const resetSearch = () => {
             searchInput.value = '';
-            // 隐藏重置按钮
+            resultsContainer.innerHTML = '';
+            resultsHeader.classList.add('hidden');
+            filterContainer.classList.add('hidden');
             resetButton.classList.add('hidden');
-            // 刷新页面
-            location.reload();
+            
+            const categoryTabsContainer = document.getElementById('categoryTabsContainer');
+            if (categoryTabsContainer) {
+                categoryTabsContainer.classList.remove('hidden');
+            }
+            if (randomCollectionsEl) {
+                randomCollectionsEl.style.display = 'block';
+            }
+
+            currentData = null;
+            currentFilter = 'all';
+            isInitialLoad = true;
+            searchInput.focus();
         };
         
         resetButton.addEventListener('click', resetSearch);
@@ -744,7 +807,7 @@
                 if (hotSearches && hotSearches.length > 0) {
                     let html = '';
                     hotSearches.forEach(item => {
-                        html += `<button class="text-sm text-ios-blue bg-blue-50 px-3 py-1 rounded-full hover:bg-blue-100 transition-colors hot-search-btn">${item.term}</button>`;
+                        html += `<button title="${item.term}" class="text-sm text-ios-blue bg-blue-50 px-3 py-1 rounded-full hover:bg-blue-100 transition-colors hot-search-btn">${item.term}</button>`;
                     });
                     container.innerHTML = html;
 
@@ -783,7 +846,7 @@
             if (data.length > 0) {
                 let html = '';
                 data.forEach(item => {
-                    html += `<button class="text-sm text-ios-blue bg-blue-50 px-3 py-1 rounded-full hover:bg-blue-100 transition-colors category-item-btn">${item}</button>`;
+                    html += `<button title="${item}" class="text-sm text-ios-blue bg-blue-50 px-3 py-1 rounded-full hover:bg-blue-100 transition-colors category-item-btn">${item}</button>`;
                 });
                 container.innerHTML = html;
                 
@@ -880,10 +943,12 @@
             const keyword = searchInput.value.trim();
             if (!keyword || isSearching) return;
 
-            // 根据新的模式变量确定插件
-            const fastPlugins = 'pansearch,pan666';
-            const allPlugins = 'pansearch,qupansou,panta,pan666,hunhepan,jikepan';
-            const plugins = currentSearchMode === 'deep' ? allPlugins : fastPlugins;
+            if (randomCollectionsEl) {
+                randomCollectionsEl.style.display = 'none';
+            }
+
+            // 根据新的模式变量确定src参数
+            const src = currentSearchMode === 'deep' ? 'all' : 'tg';
 
             isInitialLoad = false;
             isSearching = true;
@@ -907,7 +972,7 @@
                 if (checkResponse.ok) {
                     const checkResult = await checkResponse.json();
                     if (checkResult.isForbidden) {
-                        renderEmptyResults(); // 使用默认的“无结果”提示
+                        renderEmptyResults(); // 使用默认的"无结果"提示
                         return;
                     }
                 }
@@ -919,7 +984,7 @@
             // 显示加载状态
             showLoading();
             
-            fetch(`https://pansou.252035.xyz/api/search?kw=${encodeURIComponent(keyword)}&plugins=${plugins}`)
+            fetch(`https://api.jkai.de/api/search?kw=${encodeURIComponent(keyword)}&src=${src}`)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
@@ -1620,6 +1685,44 @@
             if (!isMobile) {
                 mobileAccessBtn.style.display = 'flex';
             }
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!randomCollectionsEl) return;
+
+            fetch('/collections-static/collections.json')
+                .then(response => response.json())
+                .then(data => {
+                    const collections = data.collections;
+                    if (collections && collections.length > 0) {
+                        const randomThree = collections.sort(() => 0.5 - Math.random()).slice(0, 3);
+                        
+                        let html = '<h2 class="text-2xl font-bold text-center mb-6">猜你喜欢</h2>';
+                        html += '<div class="scroll-container pb-4">';
+
+                        randomThree.forEach(collection => {
+                            const isExternalUrl = collection.cover && (collection.cover.startsWith('http://') || collection.cover.startsWith('https://'));
+                            const coverImage = collection.cover ?
+                                (isExternalUrl ? collection.cover : `/collections-static/images/${collection.cover.split('/').pop()}`) :
+                                '';
+
+                            html += `
+                                <a href="/collections-static/${collection.id}.html" class="ios-card p-4 block hover:shadow-ios-card transition-shadow scroll-item">
+                                    <div class="h-40 bg-gray-200 rounded-lg mb-4 overflow-hidden">
+                                        ${coverImage ? `<img src="${coverImage}" alt="${collection.title}" class="w-full h-full object-cover">` : ''}
+                                    </div>
+                                    <h3 class="font-semibold text-lg mb-1 truncate">${collection.title}</h3>
+                                    <p class="text-ios-gray text-sm truncate">${collection.description}</p>
+                                </a>
+                            `;
+                        });
+
+                        html += '</div>';
+                        randomCollectionsEl.innerHTML = html;
+                    }
+                })
+                .catch(error => console.error('Error fetching random collections:', error));
         });
     </script>
     </body>
